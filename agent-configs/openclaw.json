@@ -1,0 +1,223 @@
+{
+  // OpenClaw Agent Configuration — Jarvis Mission Control
+  // JSON5 format: comments allowed, trailing commas OK
+  // Environment variables referenced as ${VAR_NAME} are loaded from .env
+
+  "agents": {
+    "defaults": {
+      "model": "ollama/qwen3:30b-a3b",
+      "fallbackModel": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.7,
+      "maxTokens": 8192,
+      "timeout": 300,
+      "retries": 2,
+      "tools": ["read", "write"],
+      "sessionScope": "per-peer",
+      "sessionResetCron": "0 4 * * *"
+    },
+
+    "list": [
+      {
+        "id": "deal-scanner",
+        "name": "Deal Scanner",
+        "workspace": "./workspaces/deal-scanner",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.3,
+        "tools": ["web_search", "web_fetch", "exec", "read", "write"],
+        "permissions": {
+          "web_search": { "allowedDomains": ["bizbuysell.com", "flippa.com", "acquire.com", "microacquire.com", "google.com"] },
+          "exec": { "allowedCommands": ["curl", "jq", "python3"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["revenue", "acquisition"]
+      },
+      {
+        "id": "newsletter-engine",
+        "name": "Newsletter Engine",
+        "workspace": "./workspaces/newsletter-engine",
+        "model": "ollama/qwen3:235b-a22b",
+        "temperature": 0.6,
+        "maxTokens": 16384,
+        "tools": ["web_search", "web_fetch", "write", "exec", "read"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "curl", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/newsletters/", "~/jarvis/data/subscribers/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["revenue", "content"]
+      },
+      {
+        "id": "reputation-monitor",
+        "name": "Reputation Monitor",
+        "workspace": "./workspaces/reputation-monitor",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.4,
+        "tools": ["web_search", "web_fetch", "exec", "read", "write"],
+        "permissions": {
+          "web_search": { "allowedDomains": ["google.com", "yelp.com", "healthgrades.com", "vitals.com", "zocdoc.com", "bbb.org"] },
+          "exec": { "allowedCommands": ["curl", "jq", "python3"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["reputation", "client-services"]
+      },
+      {
+        "id": "compliance-engine",
+        "name": "Compliance Engine",
+        "workspace": "./workspaces/compliance-engine",
+        "model": "anthropic/claude-sonnet-4-20250514",
+        "temperature": 0.2,
+        "maxTokens": 16384,
+        "tools": ["web_search", "web_fetch", "read", "write"],
+        "permissions": {
+          "web_search": { "allowedDomains": ["cms.gov", "hhs.gov", "federalregister.gov", "congress.gov", "google.com"] },
+          "write": { "allowedPaths": ["~/jarvis/data/compliance/", "~/jarvis/data/policies/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["compliance", "healthcare"]
+      },
+      {
+        "id": "outreach-agent",
+        "name": "Outreach Agent",
+        "workspace": "./workspaces/outreach-agent",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.5,
+        "tools": ["web_search", "exec", "write", "read"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "curl", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/outreach/", "~/jarvis/data/leads/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["revenue", "outreach"]
+      },
+      {
+        "id": "overnight-deliverables",
+        "name": "Overnight Deliverables",
+        "workspace": "./workspaces/overnight-deliverables",
+        "model": "ollama/qwen3:235b-a22b",
+        "temperature": 0.5,
+        "maxTokens": 32768,
+        "tools": ["read", "write", "exec", "web_search"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "pandoc", "wkhtmltopdf", "curl", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/deliverables/", "~/jarvis/data/orders/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["revenue", "deliverables"]
+      },
+      {
+        "id": "content-studio",
+        "name": "Content Studio",
+        "workspace": "./workspaces/content-studio",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.7,
+        "maxTokens": 16384,
+        "tools": ["web_search", "write", "exec", "read"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "curl", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/content/", "~/jarvis/data/blogs/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["content", "seo"]
+      },
+      {
+        "id": "system-guardian",
+        "name": "System Guardian",
+        "workspace": "./workspaces/system-guardian",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.1,
+        "maxTokens": 4096,
+        "tools": ["exec", "read"],
+        "permissions": {
+          "exec": { "allowedCommands": ["docker", "ollama", "tailscale", "curl", "ps", "df", "top", "macmon", "uptime", "networksetup"] },
+          "read": { "allowedPaths": ["~/jarvis/logs/", "/var/log/", "~/jarvis/configs/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["infrastructure", "monitoring"],
+        "alertThresholds": {
+          "cpuPercent": 90,
+          "memoryPercent": 85,
+          "diskPercent": 90,
+          "temperatureCelsius": 95,
+          "serviceDownMinutes": 5
+        }
+      }
+    ]
+  },
+
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "owner-only",
+      "ownerChatId": "${TELEGRAM_OWNER_CHAT_ID}",
+      "groupConfig": {
+        "enabled": false,
+        "allowedGroups": []
+      },
+      "rateLimit": {
+        "messagesPerMinute": 20,
+        "messagesPerHour": 200
+      },
+      "formatting": "markdown",
+      "maxMessageLength": 4096
+    }
+  },
+
+  "cron": {
+    "enabled": true,
+    "jobsFile": "./cron-jobs.json",
+    "timezone": "America/New_York",
+    "missedJobPolicy": "run-once",
+    "maxConcurrentJobs": 3
+  },
+
+  "skills": {
+    "load": {
+      "extraDirs": [
+        "./workspaces/*/skills"
+      ]
+    },
+    "audit": {
+      "enabled": true,
+      "blockUntrusted": true
+    }
+  },
+
+  "gateway": {
+    "port": 18789,
+    "host": "127.0.0.1",
+    "cors": {
+      "origins": ["http://localhost:3000", "http://100.64.0.0/10"]
+    },
+    "auth": {
+      "type": "bearer",
+      "token": "${OPENCLAW_API_TOKEN}"
+    }
+  },
+
+  "session": {
+    "scope": "per-peer",
+    "dailyResetCron": "0 4 * * *",
+    "maxHistoryMessages": 100,
+    "maxHistoryTokens": 50000,
+    "persistence": {
+      "enabled": true,
+      "store": "sqlite",
+      "path": "~/jarvis/data/sessions.db"
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "file": "~/jarvis/logs/openclaw.log",
+    "maxSizeMB": 100,
+    "maxFiles": 10,
+    "structured": true
+  },
+
+  "ollama": {
+    "baseUrl": "http://localhost:11434",
+    "keepAlive": "24h",
+    "numCtx": 32768
+  }
+}

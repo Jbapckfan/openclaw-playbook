@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Mission Control</title>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-card-hover: #1f2b3d;
+            --border: #2a3a4e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top Bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .ws-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .ws-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            transition: background 0.3s;
+        }
+
+        .ws-dot.connected { background: var(--accent-green); }
+        .ws-dot.connecting { background: var(--accent-yellow); animation: pulse 1s infinite; }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 16px;
+            padding: 20px 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .badge-yellow { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
+        .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+
+        /* System Overview - spans full width */
+        .system-overview {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Agent List */
+        .agent-list {
+            grid-column: 1 / 3;
+            grid-row: span 2;
+        }
+
+        .agent-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg-primary);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .agent-item:hover {
+            border-color: var(--border);
+            background: var(--bg-card-hover);
+        }
+
+        .agent-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .agent-info { flex: 1; }
+
+        .agent-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .agent-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .agent-status {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-active { color: var(--accent-green); }
+        .status-idle { color: var(--text-muted); }
+        .status-error { color: var(--accent-red); }
+        .status-working { color: var(--accent-yellow); }
+
+        /* Activity Feed */
+        .activity-feed {
+            grid-column: 3;
+            grid-row: span 2;
+        }
+
+        .feed-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .feed-item:last-child { border-bottom: none; }
+
+        .feed-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .feed-text { color: var(--text-secondary); line-height: 1.4; }
+        .feed-text strong { color: var(--text-primary); }
+
+        /* Task Queue */
+        .task-queue { grid-column: 1 / -1; }
+
+        .task-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .task-table th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .task-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(42, 58, 78, 0.5);
+            color: var(--text-secondary);
+        }
+
+        .task-table tr:hover td {
+            background: var(--bg-primary);
+        }
+
+        .priority-high { color: var(--accent-red); font-weight: 600; }
+        .priority-medium { color: var(--accent-yellow); font-weight: 600; }
+        .priority-low { color: var(--accent-green); font-weight: 600; }
+
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Revenue Tracker */
+        .revenue-card {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .revenue-item {
+            text-align: center;
+            padding: 16px;
+        }
+
+        .revenue-amount {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .revenue-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .revenue-change {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .change-up { color: var(--accent-green); }
+        .change-down { color: var(--accent-red); }
+
+        /* Hardware Monitor */
+        .hw-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .hw-item {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .hw-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hw-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .hw-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .hw-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-card-hover);
+        }
+
+        .action-btn .action-icon {
+            font-size: 18px;
+            margin-bottom: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-grid { grid-template-columns: 1fr 1fr; }
+            .system-overview { grid-template-columns: repeat(3, 1fr); }
+            .agent-list { grid-column: 1 / -1; grid-row: auto; }
+            .activity-feed { grid-column: 1 / -1; }
+            .revenue-card { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .system-overview { grid-template-columns: repeat(2, 1fr); }
+            .revenue-card { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="logo">JARVIS Mission Control</div>
+            <div class="system-status">
+                <div class="status-dot" id="system-status-dot"></div>
+                <span id="system-status-text">All Systems Operational</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="ws-status">
+                <div class="ws-dot" id="ws-dot"></div>
+                <span id="ws-status-text">Disconnected</span>
+            </div>
+            <span>|</span>
+            <span id="uptime">Uptime: —</span>
+            <span>|</span>
+            <span id="clock"></span>
+            <span>|</span>
+            <span id="tailscale-status">Tailscale: Checking...</span>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <!-- System Overview Stats -->
+        <div class="system-overview">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-active-agents" style="color: var(--accent-green)">7</div>
+                <div class="stat-label">Active Agents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-tasks-today" style="color: var(--accent-blue)">23</div>
+                <div class="stat-label">Tasks Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-tasks-week" style="color: var(--accent-purple)">156</div>
+                <div class="stat-label">Tasks This Week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-success-rate" style="color: var(--accent-cyan)">99.7%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-revenue-today" style="color: var(--accent-yellow)">$2,847</div>
+                <div class="stat-label">Revenue Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-revenue-month" style="color: var(--accent-green)">$18.2K</div>
+                <div class="stat-label">Revenue This Month</div>
+            </div>
+        </div>
+
+        <!-- Agent List -->
+        <div class="card agent-list" id="agent-fleet">
+            <div class="card-header">
+                <div class="card-title">Agent Fleet</div>
+                <div class="card-badge badge-green" id="agent-fleet-badge">7 Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-deal-scanner">
+                <div class="agent-icon" style="background: rgba(59,130,246,0.15);">🔍</div>
+                <div class="agent-info">
+                    <div class="agent-name">Deal Scanner</div>
+                    <div class="agent-desc" id="agent-deal-scanner-desc">Monitoring BizBuySell, Flippa, Acquire.com — 847 listings scanned today</div>
+                </div>
+                <div class="agent-status status-active" id="agent-deal-scanner-status">Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-newsletter-engine">
+                <div class="agent-icon" style="background: rgba(16,185,129,0.15);">📰</div>
+                <div class="agent-info">
+                    <div class="agent-name">Newsletter Engine</div>
+                    <div class="agent-desc" id="agent-newsletter-engine-desc">Compliance Pulse sent at 6:32 AM — 94.2% open rate</div>
+                </div>
+                <div class="agent-status status-active" id="agent-newsletter-engine-status">Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-reputation-monitor">
+                <div class="agent-icon" style="background: rgba(245,158,11,0.15);">⭐</div>
+                <div class="agent-info">
+                    <div class="agent-name">Reputation Monitor</div>
+                    <div class="agent-desc" id="agent-reputation-monitor-desc">Watching 47 clients — 3 new reviews detected, 2 responses sent</div>
+                </div>
+                <div class="agent-status status-working" id="agent-reputation-monitor-status">Working</div>
+            </div>
+
+            <div class="agent-item" id="agent-overnight-deliverables">
+                <div class="agent-icon" style="background: rgba(139,92,246,0.15);">🌙</div>
+                <div class="agent-info">
+                    <div class="agent-name">Overnight Deliverables</div>
+                    <div class="agent-desc" id="agent-overnight-deliverables-desc">2 orders completed, 1 in progress — business plan for dental group</div>
+                </div>
+                <div class="agent-status status-working" id="agent-overnight-deliverables-status">Working</div>
+            </div>
+
+            <div class="agent-item" id="agent-compliance-engine">
+                <div class="agent-icon" style="background: rgba(6,182,212,0.15);">🏥</div>
+                <div class="agent-info">
+                    <div class="agent-name">Compliance Engine</div>
+                    <div class="agent-desc" id="agent-compliance-engine-desc">CMS update detected — updating policies for 12 clients</div>
+                </div>
+                <div class="agent-status status-active" id="agent-compliance-engine-status">Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-outreach-agent">
+                <div class="agent-icon" style="background: rgba(236,72,153,0.15);">📧</div>
+                <div class="agent-info">
+                    <div class="agent-name">Outreach Agent</div>
+                    <div class="agent-desc" id="agent-outreach-agent-desc">142 cold emails sent, 7 replies received, 2 meetings booked</div>
+                </div>
+                <div class="agent-status status-active" id="agent-outreach-agent-status">Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-system-guardian">
+                <div class="agent-icon" style="background: rgba(34,197,94,0.15);">🛡️</div>
+                <div class="agent-info">
+                    <div class="agent-name">System Guardian</div>
+                    <div class="agent-desc" id="agent-system-guardian-desc">All systems nominal — last health check 2 min ago</div>
+                </div>
+                <div class="agent-status status-active" id="agent-system-guardian-status">Active</div>
+            </div>
+
+            <div class="agent-item" id="agent-content-studio">
+                <div class="agent-icon" style="background: rgba(100,116,139,0.15);">💤</div>
+                <div class="agent-info">
+                    <div class="agent-name">Content Studio</div>
+                    <div class="agent-desc" id="agent-content-studio-desc">Next batch scheduled for 2:00 AM — 8 blog posts queued</div>
+                </div>
+                <div class="agent-status status-idle" id="agent-content-studio-status">Scheduled</div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card activity-feed" id="activity-feed">
+            <div class="card-header">
+                <div class="card-title">Live Activity</div>
+                <div class="card-badge badge-blue" id="activity-feed-badge">Real-time</div>
+            </div>
+
+            <div class="feed-item">
+                <div class="feed-time">2 min ago</div>
+                <div class="feed-text"><strong>Deal Scanner</strong> found undervalued medical billing service in Orlando — SDE multiple 1.9x (avg 2.8x). Scored ★★★★★.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">8 min ago</div>
+                <div class="feed-text"><strong>Reputation Monitor</strong> responded to 1-star review for Tampa Dental Group. Response approved and posted.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">15 min ago</div>
+                <div class="feed-text"><strong>Outreach Agent</strong> received reply from Bayshore Medical — interested in $497 scheduling tool. Meeting booked for Thursday.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">23 min ago</div>
+                <div class="feed-text"><strong>Newsletter Engine</strong> — DealFlow Daily sent to 1,247 subscribers. Subject: "3 Healthcare Businesses Under $300K This Week"</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">41 min ago</div>
+                <div class="feed-text"><strong>Overnight Deliverables</strong> completed pitch deck for SaaS founder. Delivered to client inbox. $347 earned.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">1 hr ago</div>
+                <div class="feed-text"><strong>Compliance Engine</strong> detected new CMS Final Rule affecting telehealth billing. Updating policies for 12 clients.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">1.5 hr ago</div>
+                <div class="feed-text"><strong>System Guardian</strong> — Ollama health check passed. Qwen3-235B loaded. Memory: 187GB/256GB. Temp: 72°C.</div>
+            </div>
+            <div class="feed-item">
+                <div class="feed-time">2 hr ago</div>
+                <div class="feed-text"><strong>Content Studio</strong> finished 4 blog posts for Stonebridge client "MedTech Solutions." Queued for review.</div>
+            </div>
+        </div>
+
+        <!-- Task Queue -->
+        <div class="card task-queue" id="task-queue">
+            <div class="card-header">
+                <div class="card-title">Task Queue</div>
+                <div class="card-badge badge-yellow" id="task-queue-badge">5 In Progress</div>
+            </div>
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Agent</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>ETA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">Business plan — Dental Group Partners</td>
+                        <td>Overnight Deliverables</td>
+                        <td class="priority-high">High</td>
+                        <td><span class="card-badge badge-yellow">In Progress</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width: 72%; background: var(--accent-yellow);"></div></div></td>
+                        <td>1.5 hrs</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">Policy updates — CMS telehealth rule</td>
+                        <td>Compliance Engine</td>
+                        <td class="priority-high">High</td>
+                        <td><span class="card-badge badge-yellow">In Progress</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width: 45%; background: var(--accent-yellow);"></div></div></td>
+                        <td>3 hrs</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">Weekly newsletter — HealthTech Insider</td>
+                        <td>Newsletter Engine</td>
+                        <td class="priority-medium">Medium</td>
+                        <td><span class="card-badge badge-blue">Scheduled</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width: 0%; background: var(--accent-blue);"></div></div></td>
+                        <td>6:00 AM</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">Cold outreach batch — 50 dental practices</td>
+                        <td>Outreach Agent</td>
+                        <td class="priority-medium">Medium</td>
+                        <td><span class="card-badge badge-yellow">In Progress</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width: 68%; background: var(--accent-yellow);"></div></div></td>
+                        <td>2 hrs</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">Blog posts — Stonebridge client batch</td>
+                        <td>Content Studio</td>
+                        <td class="priority-low">Low</td>
+                        <td><span class="card-badge badge-green">Complete</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width: 100%; background: var(--accent-green);"></div></div></td>
+                        <td>Done</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Revenue Tracker -->
+        <div class="card revenue-card" id="revenue-tracker">
+            <div class="revenue-item">
+                <div class="revenue-amount" id="rev-today" style="color: var(--accent-green);">$2,847</div>
+                <div class="revenue-label">Today</div>
+                <div class="revenue-change change-up" id="rev-today-change">+34% vs yesterday</div>
+            </div>
+            <div class="revenue-item">
+                <div class="revenue-amount" id="rev-month" style="color: var(--accent-blue);">$18,234</div>
+                <div class="revenue-label">This Month</div>
+                <div class="revenue-change change-up" id="rev-month-change">+22% vs last month</div>
+            </div>
+            <div class="revenue-item">
+                <div class="revenue-amount" id="rev-quarter" style="color: var(--accent-purple);">$47,891</div>
+                <div class="revenue-label">This Quarter</div>
+                <div class="revenue-change change-up" id="rev-quarter-change">+68% vs Q3</div>
+            </div>
+            <div class="revenue-item">
+                <div class="revenue-amount" id="rev-ytd" style="color: var(--accent-cyan);">$142,567</div>
+                <div class="revenue-label">Year to Date</div>
+                <div class="revenue-change change-up" id="rev-ytd-change">On track for $218K</div>
+            </div>
+        </div>
+
+        <!-- Hardware Monitor -->
+        <div class="card" id="hw-studio-1">
+            <div class="card-header">
+                <div class="card-title">Hardware — Mac Studio #1</div>
+                <div class="card-badge badge-green" id="hw1-badge">Healthy</div>
+            </div>
+            <div class="hw-grid">
+                <div class="hw-item">
+                    <div class="hw-label">GPU Cores</div>
+                    <div class="hw-value" id="hw1-gpu" style="color: var(--accent-blue);">73%</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw1-gpu-bar" style="width: 73%; background: var(--accent-blue);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">Unified Memory</div>
+                    <div class="hw-value" id="hw1-mem" style="color: var(--accent-yellow);">187/256 GB</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw1-mem-bar" style="width: 73%; background: var(--accent-yellow);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">Temperature</div>
+                    <div class="hw-value" id="hw1-temp" style="color: var(--accent-green);">72°C</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw1-temp-bar" style="width: 60%; background: var(--accent-green);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">SSD Usage</div>
+                    <div class="hw-value" id="hw1-ssd" style="color: var(--accent-cyan);">1.2/4 TB</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw1-ssd-bar" style="width: 30%; background: var(--accent-cyan);"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hardware Monitor #2 -->
+        <div class="card" id="hw-studio-2">
+            <div class="card-header">
+                <div class="card-title">Hardware — Mac Studio #2</div>
+                <div class="card-badge badge-green" id="hw2-badge">Healthy</div>
+            </div>
+            <div class="hw-grid">
+                <div class="hw-item">
+                    <div class="hw-label">GPU Cores</div>
+                    <div class="hw-value" id="hw2-gpu" style="color: var(--accent-blue);">61%</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw2-gpu-bar" style="width: 61%; background: var(--accent-blue);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">Unified Memory</div>
+                    <div class="hw-value" id="hw2-mem" style="color: var(--accent-green);">142/256 GB</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw2-mem-bar" style="width: 55%; background: var(--accent-green);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">Temperature</div>
+                    <div class="hw-value" id="hw2-temp" style="color: var(--accent-green);">68°C</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw2-temp-bar" style="width: 52%; background: var(--accent-green);"></div></div>
+                </div>
+                <div class="hw-item">
+                    <div class="hw-label">TB5 Link</div>
+                    <div class="hw-value" id="hw2-tb5" style="color: var(--accent-purple);">Active</div>
+                    <div class="hw-bar"><div class="hw-fill" id="hw2-tb5-bar" style="width: 100%; background: var(--accent-purple);"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Quick Actions</div>
+            </div>
+            <div class="quick-actions">
+                <button class="action-btn" onclick="alert('Sending text command to agent...')">
+                    <div class="action-icon">💬</div>
+                    Text Command
+                </button>
+                <button class="action-btn" onclick="alert('Opening agent logs...')">
+                    <div class="action-icon">📋</div>
+                    View Logs
+                </button>
+                <button class="action-btn" onclick="alert('Pausing all agents...')">
+                    <div class="action-icon">⏸️</div>
+                    Pause All
+                </button>
+                <button class="action-btn" onclick="alert('Running health check...')">
+                    <div class="action-icon">🔍</div>
+                    Health Check
+                </button>
+                <button class="action-btn" onclick="alert('Opening Ollama dashboard...')">
+                    <div class="action-icon">🧠</div>
+                    Ollama Status
+                </button>
+                <button class="action-btn" onclick="alert('Generating revenue report...')">
+                    <div class="action-icon">📊</div>
+                    Revenue Report
+                </button>
+                <button class="action-btn" onclick="alert('Opening Claude Code review...')">
+                    <div class="action-icon">🔒</div>
+                    Security Audit
+                </button>
+                <button class="action-btn" onclick="alert('Deploying new agent...')">
+                    <div class="action-icon">🚀</div>
+                    Deploy Agent
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── Live Clock ──────────────────────────────────────────────────
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ─── Smooth DOM Updates ──────────────────────────────────────────
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el && el.textContent !== String(value)) {
+                el.style.transition = 'opacity 0.2s';
+                el.style.opacity = '0.6';
+                setTimeout(() => {
+                    el.textContent = value;
+                    el.style.opacity = '1';
+                }, 100);
+            }
+        }
+
+        function setBar(id, percent) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.transition = 'width 0.5s ease';
+                el.style.width = Math.min(100, Math.max(0, percent)) + '%';
+            }
+        }
+
+        function setStatus(id, statusClass, label) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.className = 'agent-status ' + statusClass;
+                el.textContent = label;
+            }
+        }
+
+        function tempColor(celsius) {
+            if (celsius >= 90) return 'var(--accent-red)';
+            if (celsius >= 75) return 'var(--accent-yellow)';
+            return 'var(--accent-green)';
+        }
+
+        // ─── WebSocket Connection ────────────────────────────────────────
+        let ws = null;
+        let reconnectDelay = 1000;
+        const MAX_RECONNECT_DELAY = 30000;
+
+        function wsUrl() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = location.hostname || 'localhost';
+            const port = location.port || '3000';
+            return proto + '//' + host + ':' + port + '/ws';
+        }
+
+        function setWsStatus(state) {
+            const dot = document.getElementById('ws-dot');
+            const text = document.getElementById('ws-status-text');
+            if (!dot || !text) return;
+
+            dot.className = 'ws-dot';
+            if (state === 'connected') {
+                dot.classList.add('connected');
+                text.textContent = 'Live';
+                text.style.color = 'var(--accent-green)';
+            } else if (state === 'connecting') {
+                dot.classList.add('connecting');
+                text.textContent = 'Connecting...';
+                text.style.color = 'var(--accent-yellow)';
+            } else {
+                text.textContent = 'Disconnected';
+                text.style.color = 'var(--accent-red)';
+            }
+        }
+
+        function connectWebSocket() {
+            setWsStatus('connecting');
+
+            try {
+                ws = new WebSocket(wsUrl());
+            } catch (e) {
+                console.warn('WebSocket construction failed:', e);
+                scheduleReconnect();
+                return;
+            }
+
+            ws.onopen = function() {
+                console.log('Mission Control: WebSocket connected');
+                setWsStatus('connected');
+                reconnectDelay = 1000; // Reset backoff
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (e) {
+                    console.warn('Failed to parse WebSocket message:', e);
+                }
+            };
+
+            ws.onclose = function() {
+                console.log('Mission Control: WebSocket disconnected');
+                setWsStatus('disconnected');
+                scheduleReconnect();
+            };
+
+            ws.onerror = function() {
+                setWsStatus('disconnected');
+                // onclose will fire after this, which handles reconnect
+            };
+        }
+
+        function scheduleReconnect() {
+            console.log('Reconnecting in ' + (reconnectDelay / 1000) + 's...');
+            setTimeout(connectWebSocket, reconnectDelay);
+            reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
+        }
+
+        // ─── Message Handler ─────────────────────────────────────────────
+        function handleMessage(data) {
+            // Uptime
+            if (data.uptime) {
+                setText('uptime', 'Uptime: ' + data.uptime);
+            }
+
+            // System metrics (CPU, memory, disk)
+            if (data.system && data.system.online) {
+                const sys = data.system;
+
+                // Update hardware panel #1 with real system data
+                const cpuPct = Math.round(sys.cpu.percent);
+                const memUsed = sys.memory.used_gb;
+                const memTotal = sys.memory.total_gb;
+                const memPct = Math.round(sys.memory.percent);
+                const diskUsed = sys.disk.used_gb;
+                const diskTotal = sys.disk.total_gb;
+                const diskPct = Math.round(sys.disk.percent);
+
+                // Map to Mac Studio #1 hardware panel
+                setText('hw1-mem', memUsed + '/' + memTotal + ' GB');
+                setBar('hw1-mem-bar', memPct);
+
+                setText('hw1-ssd', (diskUsed / 1000).toFixed(1) + '/' + (diskTotal / 1000).toFixed(1) + ' TB');
+                setBar('hw1-ssd-bar', diskPct);
+
+                // Health badge based on thresholds
+                if (cpuPct > 90 || memPct > 85 || diskPct > 90) {
+                    const badge = document.getElementById('hw1-badge');
+                    if (badge) {
+                        badge.className = 'card-badge badge-red';
+                        badge.textContent = 'Critical';
+                    }
+                } else if (cpuPct > 80 || memPct > 80 || diskPct > 80) {
+                    const badge = document.getElementById('hw1-badge');
+                    if (badge) {
+                        badge.className = 'card-badge badge-yellow';
+                        badge.textContent = 'Warning';
+                    }
+                } else {
+                    const badge = document.getElementById('hw1-badge');
+                    if (badge) {
+                        badge.className = 'card-badge badge-green';
+                        badge.textContent = 'Healthy';
+                    }
+                }
+            }
+
+            // Apple Silicon metrics (GPU, temperature)
+            if (data.apple_silicon && data.apple_silicon.online) {
+                const as = data.apple_silicon;
+
+                if (as.gpu_usage !== undefined) {
+                    const gpuPct = Math.round(as.gpu_usage);
+                    setText('hw1-gpu', gpuPct + '%');
+                    setBar('hw1-gpu-bar', gpuPct);
+                }
+
+                if (as.temperature !== undefined) {
+                    const temp = Math.round(as.temperature);
+                    const tempEl = document.getElementById('hw1-temp');
+                    if (tempEl) tempEl.style.color = tempColor(temp);
+                    setText('hw1-temp', temp + '\u00B0C');
+                    setBar('hw1-temp-bar', Math.min(100, (temp / 110) * 100));
+                }
+            }
+
+            // Full update includes services
+            if (data.type === 'full_update') {
+                updateServiceStatus(data);
+            }
+        }
+
+        function updateServiceStatus(data) {
+            // Ollama status
+            if (data.ollama) {
+                if (data.ollama.online) {
+                    const models = data.ollama.running_count || 0;
+                    const total = data.ollama.model_count || 0;
+                    setText('agent-system-guardian-desc',
+                        'All systems nominal — Ollama: ' + models + ' running / ' + total + ' available');
+                } else {
+                    setText('agent-system-guardian-desc',
+                        'Warning: Ollama offline — ' + (data.ollama.error || 'unknown error'));
+                    setStatus('agent-system-guardian-status', 'status-error', 'Alert');
+                }
+            }
+
+            // Tailscale status
+            if (data.tailscale) {
+                const tsEl = document.getElementById('tailscale-status');
+                if (data.tailscale.online) {
+                    const peers = data.tailscale.peers_online || 0;
+                    if (tsEl) tsEl.textContent = 'Tailscale: ' + peers + ' peers';
+                } else {
+                    if (tsEl) tsEl.textContent = 'Tailscale: Offline';
+                }
+            }
+
+            // Docker status
+            if (data.docker) {
+                if (data.docker.online) {
+                    const running = data.docker.running || 0;
+                    const total = data.docker.total || 0;
+                    // Could update a docker-specific element if added
+                    console.log('Docker: ' + running + '/' + total + ' containers running');
+                }
+            }
+
+            // OpenClaw status
+            if (data.openclaw) {
+                const statusDot = document.getElementById('system-status-dot');
+                const statusText = document.getElementById('system-status-text');
+                if (data.openclaw.online) {
+                    if (statusDot) statusDot.style.background = 'var(--accent-green)';
+                    if (statusText) statusText.textContent = 'All Systems Operational';
+                } else {
+                    if (statusDot) statusDot.style.background = 'var(--accent-yellow)';
+                    if (statusText) statusText.textContent = 'OpenClaw Offline — Dashboard Only';
+                }
+            }
+
+            // Update system status based on overall health
+            updateOverallStatus(data);
+        }
+
+        function updateOverallStatus(data) {
+            const services = ['ollama', 'docker', 'tailscale', 'openclaw'];
+            let onlineCount = 0;
+            let totalCount = 0;
+
+            services.forEach(function(svc) {
+                if (data[svc]) {
+                    totalCount++;
+                    if (data[svc].online) onlineCount++;
+                }
+            });
+
+            const statusDot = document.getElementById('system-status-dot');
+            const statusText = document.getElementById('system-status-text');
+
+            if (onlineCount === totalCount && totalCount > 0) {
+                if (statusDot) statusDot.style.background = 'var(--accent-green)';
+                if (statusText) statusText.textContent = 'All Systems Operational';
+            } else if (onlineCount > 0) {
+                if (statusDot) statusDot.style.background = 'var(--accent-yellow)';
+                if (statusText) statusText.textContent = onlineCount + '/' + totalCount + ' Services Online';
+            } else if (totalCount > 0) {
+                if (statusDot) statusDot.style.background = 'var(--accent-red)';
+                if (statusText) statusText.textContent = 'Services Degraded';
+            }
+        }
+
+        // ─── Initialize ──────────────────────────────────────────────────
+        console.log('Mission Control initialized. Connecting to WebSocket...');
+        connectWebSocket();
+    </script>
+</body>
+</html>

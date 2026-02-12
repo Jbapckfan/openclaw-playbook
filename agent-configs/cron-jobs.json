@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "timezone": "America/New_York",
+  "jobs": [
+    {
+      "id": "deal-scanner-daily",
+      "agentId": "deal-scanner",
+      "schedule": "0 6 * * *",
+      "description": "Full marketplace scan — BizBuySell, Flippa, Acquire.com",
+      "prompt": "Run a full scan of BizBuySell, Flippa, and Acquire.com. Filter for healthcare and medical businesses priced $50K–$500K with positive cash flow. Score each listing using the scoring matrix and send top deals (3+ stars) to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 600,
+      "enabled": true
+    },
+    {
+      "id": "deal-scanner-incremental",
+      "agentId": "deal-scanner",
+      "schedule": "0 8-20/2 * * *",
+      "description": "Incremental check for new listings every 2 hours",
+      "prompt": "Check for new listings posted since the last scan on BizBuySell, Flippa, and Acquire.com. Only report new listings not previously seen. Score and send any 3+ star deals to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 300,
+      "enabled": true
+    },
+    {
+      "id": "newsletter-dealflow-daily",
+      "agentId": "newsletter-engine",
+      "schedule": "30 5 * * 1-5",
+      "description": "DealFlow Daily newsletter — weekdays",
+      "prompt": "Research and write today's DealFlow Daily newsletter. Focus on the best business acquisition deals found in the past 24 hours. Include 3–5 curated deals with commentary. Send to the subscriber list.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 900,
+      "enabled": true
+    },
+    {
+      "id": "newsletter-compliance-pulse",
+      "agentId": "newsletter-engine",
+      "schedule": "0 4 * * 2",
+      "description": "Compliance Pulse weekly newsletter — Tuesdays",
+      "prompt": "Research the past week's healthcare compliance updates from CMS, HHS, and state boards. Write the Compliance Pulse newsletter with the most impactful regulatory changes, plain-English summaries, and action items. Send to subscriber list.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 1200,
+      "enabled": true
+    },
+    {
+      "id": "newsletter-healthtech-insider",
+      "agentId": "newsletter-engine",
+      "schedule": "0 4 * * 4",
+      "description": "HealthTech Insider weekly newsletter — Thursdays",
+      "prompt": "Research the latest health technology trends, startup funding, and digital health innovations from the past week. Write the HealthTech Insider deep-dive newsletter with analysis and implications for healthcare business owners. Send to subscriber list.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 1200,
+      "enabled": true
+    },
+    {
+      "id": "reputation-monitor-scan",
+      "agentId": "reputation-monitor",
+      "schedule": "*/30 * * * *",
+      "description": "Check all platforms for new reviews every 30 minutes",
+      "prompt": "Scan Google Business, Yelp, Healthgrades, Vitals, Zocdoc, and BBB for new reviews across all monitored client profiles. Classify sentiment, draft responses, and send alerts for any new reviews found.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 300,
+      "enabled": true
+    },
+    {
+      "id": "reputation-daily-digest",
+      "agentId": "reputation-monitor",
+      "schedule": "0 8 * * *",
+      "description": "Daily reputation digest — morning summary",
+      "prompt": "Compile a daily digest of all reviews detected in the past 24 hours. Include total counts by platform and sentiment, highlight any urgent items, and summarize overall reputation trends. Send digest to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 300,
+      "enabled": true
+    },
+    {
+      "id": "compliance-daily-scan",
+      "agentId": "compliance-engine",
+      "schedule": "0 7 * * *",
+      "description": "Daily regulatory scan — CMS, HHS, Federal Register",
+      "prompt": "Scan CMS.gov, HHS.gov, Federal Register, and Florida state boards for any new regulatory updates, Final Rules, Proposed Rules, guidance documents, or enforcement actions affecting healthcare businesses. Classify by urgency and send structured alerts for any findings.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 600,
+      "enabled": true
+    },
+    {
+      "id": "outreach-morning-batch",
+      "agentId": "outreach-agent",
+      "schedule": "0 9 * * 1-5",
+      "description": "Morning outreach batch — new emails + follow-ups (weekdays)",
+      "prompt": "Process today's outreach batch: send new cold emails to the next 30 leads in the pipeline and execute scheduled follow-ups (Day 3, Day 7, Day 14) for active sequences. Personalize each email based on lead research. Send daily stats to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 600,
+      "enabled": true
+    },
+    {
+      "id": "outreach-reply-check",
+      "agentId": "outreach-agent",
+      "schedule": "0 14 * * 1-5",
+      "description": "Afternoon reply check — categorize responses (weekdays)",
+      "prompt": "Check for new replies to outreach emails. Categorize each reply as positive (interested), neutral (more info needed), or negative (not interested/unsubscribe). Alert immediately on positive replies. Send summary to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 300,
+      "enabled": true
+    },
+    {
+      "id": "overnight-deliverables-start",
+      "agentId": "overnight-deliverables",
+      "schedule": "0 20 * * *",
+      "description": "Begin overnight production run",
+      "prompt": "Check the order queue at ~/jarvis/data/orders/pending/ for new orders. Process each order in priority order: research, outline, write, polish, format to PDF, and save to completed directory. Send completion notifications to Telegram for each deliverable. Target all orders complete by 6 AM.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 36000,
+      "enabled": true
+    },
+    {
+      "id": "content-studio-batch",
+      "agentId": "content-studio",
+      "schedule": "0 2 * * *",
+      "description": "Nightly content production batch",
+      "prompt": "Process the content queue at ~/jarvis/data/content/queue/. For each assignment: research the topic, perform keyword analysis, write SEO-optimized content, generate meta descriptions, and save to completed directory. Send batch completion report to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 14400,
+      "enabled": true
+    },
+    {
+      "id": "system-guardian-quick",
+      "agentId": "system-guardian",
+      "schedule": "*/5 * * * *",
+      "description": "Quick health check — critical services + hardware thresholds",
+      "prompt": "Run quick health check: verify Ollama API responds, OpenClaw gateway is up, Docker containers are running, and hardware metrics (CPU, memory, GPU temp) are within thresholds. Only alert if something is wrong or approaching critical thresholds.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 60,
+      "enabled": true
+    },
+    {
+      "id": "system-guardian-full",
+      "agentId": "system-guardian",
+      "schedule": "*/30 * * * *",
+      "description": "Full infrastructure scan — all components",
+      "prompt": "Run full infrastructure scan: all services (Ollama, OpenClaw, Docker, Tailscale, ChromaDB, SearXNG), all hardware metrics (both Mac Studios), network connectivity, and disk usage. Log results and alert on any anomalies.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 120,
+      "enabled": true
+    },
+    {
+      "id": "system-guardian-daily-digest",
+      "agentId": "system-guardian",
+      "schedule": "0 6 * * *",
+      "description": "Daily health digest — morning summary",
+      "prompt": "Compile a comprehensive daily health digest. Include: overall system status, hardware metrics for both Mac Studios, service uptime, incident count, resource trends (memory/disk), and any recommendations. Send formatted digest to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 120,
+      "enabled": true
+    }
+  ]
+}
