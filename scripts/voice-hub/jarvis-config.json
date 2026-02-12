@@ -1,0 +1,60 @@
+{
+  "hotkey": {
+    "combination": "cmd+shift+j",
+    "description": "Push-to-talk activation"
+  },
+  "llm": {
+    "model": "qwen3:30b-a3b",
+    "baseUrl": "http://localhost:11434",
+    "endpoint": "/api/chat",
+    "temperature": 0.7,
+    "maxTokens": 1024,
+    "streamTimeoutMs": 30000
+  },
+  "stt": {
+    "model": "mlx-community/whisper-large-v3-turbo",
+    "language": "en",
+    "sampleRate": 16000,
+    "vadAggressiveness": 2,
+    "silenceThresholdS": 1.5,
+    "maxRecordingS": 60
+  },
+  "tts": {
+    "engine": "piper",
+    "voice": "en_US-lessac-medium",
+    "sampleRate": 22050,
+    "speakingRate": 1.0,
+    "sentenceSilence": 0.2,
+    "fallback": "say"
+  },
+  "conversation": {
+    "maxTurns": 20,
+    "maxTokenEstimate": 8000,
+    "historyFile": "~/jarvis/data/voice/conversation-history.json",
+    "voiceCommands": {
+      "clearMemory": ["new conversation", "start over", "clear history", "reset"],
+      "forgetLast": ["forget that", "undo that", "never mind", "scratch that"]
+    }
+  },
+  "routing": {
+    "gatewayUrl": "http://localhost:18789",
+    "bridgePhrases": [
+      "Let me check with {agent}.",
+      "Routing to {agent}.",
+      "Asking {agent} for you."
+    ],
+    "routeDetectionChars": 50
+  },
+  "audio": {
+    "activationBeep": true,
+    "beepFrequency": 880,
+    "beepDuration": 0.1,
+    "deactivationFrequency": 440,
+    "deactivationDuration": 0.08
+  },
+  "logging": {
+    "level": "INFO",
+    "logFile": "~/jarvis/logs/jarvis-voice.log",
+    "commandLog": "~/jarvis/data/voice/jarvis-command-log.jsonl"
+  }
+}

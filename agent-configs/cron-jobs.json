@@ -166,6 +166,28 @@
       "sessionIsolation": true,
       "timeout": 120,
       "enabled": true
+    },
+    {
+      "id": "zombie-resurrector-weekly",
+      "agentId": "zombie-resurrector",
+      "schedule": "0 2 * * 0",
+      "description": "Weekly zombie repo scan — full GitHub repo inventory",
+      "prompt": "Run a full zombie scan: execute scripts/scan-zombie-repos.sh to enumerate all GitHub repos, then analyze each zombie (90+ days inactive) for completion, dependency health, revenue potential, and effort to ship. Score using the 5-factor matrix. Generate revival briefs for any 3+ star repos. Send the full scan report to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 3600,
+      "enabled": true
+    },
+    {
+      "id": "template-publisher-monthly",
+      "agentId": "template-publisher",
+      "schedule": "0 3 1 * *",
+      "description": "Monthly template packaging scan — check for new publishable agents",
+      "prompt": "Run a full workspace scan: execute scripts/package-template.py --scan to identify all publishable agents. For any agents not yet packaged or with updates since last packaging, run the full sanitize-document-package pipeline. Generate Gumroad product pages and pricing recommendations. Send a summary report to Telegram.",
+      "deliveryTarget": "telegram",
+      "sessionIsolation": true,
+      "timeout": 1800,
+      "enabled": true
     }
   ]
 }

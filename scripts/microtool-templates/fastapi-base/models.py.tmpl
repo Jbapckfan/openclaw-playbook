@@ -1,0 +1,31 @@
+"""Data models for ${TOOL_NAME}."""
+
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, Field
+
+
+class AuditLogEntry(BaseModel):
+    """HIPAA audit log entry — never store PHI in audit logs."""
+
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    user: str = "system"
+    action: str  # e.g., "create", "read", "update", "delete"
+    resource_type: str  # e.g., "Patient", "Handoff"
+    resource_id: str
+    details: Optional[str] = None
+
+
+# --- Add your models below ---
+# Example:
+#
+# class Patient(BaseModel):
+#     """Patient record."""
+#     mrn: str  # Medical Record Number
+#     name: str
+#     room: str
+#
+# IMPORTANT: All models containing PHI must be:
+# - Stored on encrypted volumes
+# - Never logged in plain text
+# - Never included in error messages or URLs

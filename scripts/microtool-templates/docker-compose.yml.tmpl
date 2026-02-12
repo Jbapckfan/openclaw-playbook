@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  ${TOOL_SLUG}:
+    build: .
+    container_name: ${TOOL_SLUG}
+    ports:
+      - "8000:8000"
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+    environment:
+      - TZ=America/New_York
+    # Resource limits — adjust based on expected load
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+volumes:
+  app-data:
+    driver: local

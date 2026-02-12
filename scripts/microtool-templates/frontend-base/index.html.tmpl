@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${TOOL_NAME}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* High contrast mode for hospital environments */
+        @media (prefers-contrast: high) {
+            :root { --bg: #000; --fg: #fff; --accent: #00ff00; }
+            body { background: var(--bg); color: var(--fg); }
+        }
+        /* Large touch targets for gloved hands — minimum 44x44px */
+        button, input, select, textarea {
+            min-height: 44px;
+            min-width: 44px;
+            font-size: 16px; /* Prevent iOS zoom on focus */
+        }
+        /* Reduce motion for clinical environments */
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-blue-700 text-white p-4 shadow-lg">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <h1 class="text-xl font-bold">${TOOL_NAME}</h1>
+            <span id="session-timer" class="text-sm opacity-75">Session: 15:00</span>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto p-4 mt-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">${TOOL_DESCRIPTION}</h2>
+
+            <div id="app" class="space-y-4">
+                <p class="text-gray-400 italic">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="mt-4 flex items-center justify-between text-xs text-gray-400">
+            <span id="connection-status">Checking connection...</span>
+            <span>HIPAA audit logging enabled</span>
+        </div>
+    </main>
+
+    <script>
+        // --- Session timeout: 15 minutes per HIPAA ---
+        const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
+        let inactivityTimer;
+        let sessionStart = Date.now();
+
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            sessionStart = Date.now();
+            inactivityTimer = setTimeout(() => {
+                alert("Session expired due to inactivity. Please log in again.");
+                window.location.reload();
+            }, SESSION_TIMEOUT_MS);
+        }
+
+        // Update session timer display
+        setInterval(() => {
+            const elapsed = Date.now() - sessionStart;
+            const remaining = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            document.getElementById("session-timer").textContent =
+                "Session: " + mins + ":" + secs.toString().padStart(2, "0");
+        }, 1000);
+
+        document.addEventListener("mousemove", resetTimer);
+        document.addEventListener("keypress", resetTimer);
+        document.addEventListener("touchstart", resetTimer);
+        resetTimer();
+
+        // --- Auto-save form data to localStorage ---
+        function enableAutoSave(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            const inputs = form.querySelectorAll("input, textarea, select");
+            inputs.forEach(input => {
+                const key = "${TOOL_SLUG}_" + (input.name || input.id);
+                const saved = localStorage.getItem(key);
+                if (saved && input.type !== "password") input.value = saved;
+                input.addEventListener("input", () => {
+                    if (input.type !== "password") {
+                        localStorage.setItem(key, input.value);
+                    }
+                });
+            });
+        }
+
+        // --- Connection check ---
+        fetch("/health")
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById("connection-status").textContent = "Connected";
+                document.getElementById("connection-status").classList.add("text-green-500");
+                document.getElementById("app").innerHTML =
+                    '<p class="text-green-600 font-semibold text-lg">System Online</p>' +
+                    '<p class="text-gray-500">API Status: ' + data.status + '</p>' +
+                    '<p class="text-gray-400 text-sm mt-2">Server time: ' + data.timestamp + '</p>';
+            })
+            .catch(() => {
+                document.getElementById("connection-status").textContent = "Disconnected";
+                document.getElementById("connection-status").classList.add("text-red-500");
+                document.getElementById("app").innerHTML =
+                    '<p class="text-red-600 font-semibold">API Unreachable</p>' +
+                    '<p class="text-gray-500">Check that the backend is running.</p>';
+            });
+    </script>
+</body>
+</html>

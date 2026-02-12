@@ -140,6 +140,103 @@
           "temperatureCelsius": 95,
           "serviceDownMinutes": 5
         }
+      },
+      {
+        "id": "print-designer",
+        "name": "Print Designer",
+        "workspace": "./workspaces/print-designer",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.6,
+        "tools": ["exec", "read", "write"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "mflux-generate", "open"] },
+          "write": { "allowedPaths": ["~/jarvis/data/prints/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["creative", "3d-printing"]
+      },
+      {
+        "id": "argument-simulator",
+        "name": "Argument Simulator",
+        "workspace": "./workspaces/argument-simulator",
+        "model": "ollama/qwen3:235b-a22b",
+        "temperature": 0.5,
+        "tools": ["web_search", "web_fetch", "read", "write"],
+        "permissions": {
+          "write": { "allowedPaths": ["~/jarvis/data/decisions/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["strategy", "decision-support"]
+      },
+      {
+        "id": "zombie-resurrector",
+        "name": "Zombie Resurrector",
+        "workspace": "./workspaces/zombie-resurrector",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.3,
+        "tools": ["exec", "read", "write", "web_search"],
+        "permissions": {
+          "exec": { "allowedCommands": ["bash", "gh", "git", "python3", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/zombies/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["development", "revenue"]
+      },
+      {
+        "id": "codebase-archaeologist",
+        "name": "Codebase Archaeologist",
+        "workspace": "./workspaces/codebase-archaeologist",
+        "model": "ollama/qwen3:235b-a22b",
+        "temperature": 0.2,
+        "tools": ["exec", "read", "write", "web_search"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "git", "jq", "curl"] },
+          "write": { "allowedPaths": ["~/jarvis/data/archaeology/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["development", "acquisition"]
+      },
+      {
+        "id": "template-publisher",
+        "name": "Template Publisher",
+        "workspace": "./workspaces/template-publisher",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.5,
+        "tools": ["exec", "read", "write", "web_search"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "zip", "grep", "jq"] },
+          "write": { "allowedPaths": ["~/jarvis/data/templates/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["revenue", "packaging"]
+      },
+      {
+        "id": "microtool-factory",
+        "name": "Microtool Factory",
+        "workspace": "./workspaces/microtool-factory",
+        "model": "ollama/qwen3:235b-a22b",
+        "temperature": 0.4,
+        "tools": ["exec", "read", "write"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "docker", "docker-compose", "pip"] },
+          "write": { "allowedPaths": ["~/jarvis/data/microtools/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["healthcare", "development"]
+      },
+      {
+        "id": "voice-hub",
+        "name": "Voice Hub",
+        "workspace": "./workspaces/voice-hub",
+        "model": "ollama/qwen3:30b-a3b",
+        "temperature": 0.2,
+        "tools": ["exec", "read", "write"],
+        "permissions": {
+          "exec": { "allowedCommands": ["python3", "sox", "ffmpeg", "say", "piper", "play"] },
+          "write": { "allowedPaths": ["~/jarvis/data/voice/"] }
+        },
+        "deliveryTargets": ["telegram"],
+        "tags": ["infrastructure", "voice"]
       }
     ]
   },
