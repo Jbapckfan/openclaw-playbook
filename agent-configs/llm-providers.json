@@ -1,0 +1,210 @@
+{
+  "_note": "API keys are loaded from environment variables. Set them in ~/.jarvis/.env",
+  "providers": [
+    {
+      "id": "groq",
+      "name": "Groq",
+      "endpoint": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": "GROQ_API_KEY",
+      "compatible": "openai",
+      "models": ["llama-3.3-70b-versatile", "openai/gpt-oss-120b"],
+      "limits": {
+        "rpm": 30,
+        "rpd": 14400,
+        "tpd": 500000,
+        "maxContext": 128000
+      },
+      "freeType": "unlimited",
+      "notes": "Fast inference, high volume. 1K RPD for 70B, 14.4K for 8B."
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "endpoint": "https://api.cerebras.ai/v1",
+      "apiKeyEnv": "CEREBRAS_API_KEY",
+      "compatible": "openai",
+      "models": ["llama-3.3-70b", "qwen-3-32b", "qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"],
+      "limits": {
+        "rpm": 30,
+        "rpd": 14400,
+        "tpd": 1000000,
+        "maxContext": 8000
+      },
+      "freeType": "unlimited",
+      "notes": "Fastest inference (~1,800 tok/s). 8K context on free tier."
+    },
+    {
+      "id": "google",
+      "name": "Google AI Studio (Gemini)",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta",
+      "apiKeyEnv": "GOOGLE_AI_API_KEY",
+      "compatible": "google",
+      "models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+      "limits": {
+        "rpm": 10,
+        "rpd": 250,
+        "tpm": 250000,
+        "maxContext": 1000000
+      },
+      "freeType": "unlimited",
+      "notes": "1M context window. 5 RPM / 100 RPD for Pro, 10 RPM / 250 RPD for Flash."
+    },
+    {
+      "id": "nvidia",
+      "name": "NVIDIA NIM",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "apiKeyEnv": "NVIDIA_API_KEY",
+      "compatible": "openai",
+      "models": [
+        "mistralai/mistral-large-3-675b-instruct-2512",
+        "deepseek-ai/deepseek-v3.2",
+        "qwen/qwen3-coder-480b-a35b-instruct",
+        "meta/llama-3.1-405b-instruct",
+        "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "moonshotai/kimi-k2-instruct",
+        "meta/llama-4-maverick-17b-128e-instruct",
+        "z-ai/glm4.7",
+        "openai/gpt-oss-120b"
+      ],
+      "limits": {
+        "rpm": 40,
+        "freeCredits": 5000
+      },
+      "freeType": "credit-based",
+      "notes": "Largest models (675B, 480B, 405B). 5K credits on signup, request +4K more."
+    },
+    {
+      "id": "github",
+      "name": "GitHub Models",
+      "endpoint": "https://models.inference.ai.azure.com",
+      "apiKeyEnv": "GITHUB_MODELS_TOKEN",
+      "compatible": "openai",
+      "models": ["gpt-4o", "DeepSeek-R1", "Meta-Llama-3.1-405B-Instruct"],
+      "limits": {
+        "rpm": 10,
+        "rpd": 50,
+        "maxInputTokens": 8000,
+        "maxOutputTokens": 4000,
+        "concurrent": 2
+      },
+      "freeType": "unlimited",
+      "notes": "GPT-4o for free. Tied to GitHub account. Can also use `gh auth token`."
+    },
+    {
+      "id": "sambanova",
+      "name": "SambaNova",
+      "endpoint": "https://api.sambanova.ai/v1",
+      "apiKeyEnv": "SAMBANOVA_API_KEY",
+      "compatible": "openai",
+      "models": ["DeepSeek-R1", "DeepSeek-V3-0324", "Meta-Llama-3.3-70B-Instruct"],
+      "limits": {
+        "rpm": 20,
+        "rpd": 40,
+        "tpd": 200000
+      },
+      "freeType": "credit-then-free",
+      "notes": "$5 free credit (expires 30 days) then rate-limited free tier."
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral",
+      "endpoint": "https://api.mistral.ai/v1",
+      "apiKeyEnv": "MISTRAL_API_KEY",
+      "compatible": "openai",
+      "models": ["mistral-large-latest", "codestral-latest"],
+      "limits": {
+        "rpm": 2,
+        "tpm": 500000,
+        "tokensPerMonth": 1000000000,
+        "maxContext": 256000
+      },
+      "freeType": "unlimited",
+      "notes": "Huge monthly allowance (1B tok/mo). ~2 RPM (1 RPS). 128K-256K context."
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "endpoint": "https://api.deepseek.com/v1",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "compatible": "openai",
+      "models": ["deepseek-chat", "deepseek-reasoner"],
+      "limits": {
+        "maxContext": 128000,
+        "requestTimeout": 1800
+      },
+      "freeType": "credit-based",
+      "notes": "No RPM/RPD/TPM limits. 5-10M token credit (expires 30 days). May be exhausted."
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere",
+      "endpoint": "https://api.cohere.ai/compatibility/v1",
+      "apiKeyEnv": "COHERE_API_KEY",
+      "compatible": "openai",
+      "models": ["command-a-03-2025", "command-r-plus"],
+      "limits": {
+        "rpm": 20,
+        "callsPerMonth": 1000,
+        "maxContext": 256000
+      },
+      "freeType": "trial",
+      "notes": "Trial tier, ~33 calls/day. 256K context on Command A."
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "endpoint": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "compatible": "openai",
+      "models": [
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free"
+      ],
+      "limits": {
+        "rpm": 20,
+        "rpd": 50,
+        "maxContext": -1
+      },
+      "freeType": "unlimited",
+      "notes": "Aggregator. Append :free to model names. 1K RPD with $10 credit purchase."
+    }
+  ],
+  "ranking": {
+    "bySpeed": ["cerebras", "groq", "sambanova", "nvidia", "mistral"],
+    "byVolume": ["mistral", "cerebras", "groq", "deepseek", "google"],
+    "byModelSize": ["nvidia", "cerebras", "github", "sambanova", "groq"],
+    "byContext": ["google", "mistral", "cohere", "deepseek", "groq"]
+  },
+  "defaults": {
+    "voiceAgent": {
+      "primary": "ollama",
+      "fallbackChain": ["groq", "cerebras", "sambanova"],
+      "preferredModel": {
+        "groq": "llama-3.3-70b-versatile",
+        "cerebras": "llama-3.3-70b",
+        "sambanova": "Meta-Llama-3.3-70B-Instruct"
+      },
+      "notes": "Voice needs fast TTFT. Groq/Cerebras are best. Sambanova as backup."
+    },
+    "agentTasks": {
+      "primary": "ollama",
+      "fallbackChain": ["nvidia", "mistral", "groq"],
+      "preferredModel": {
+        "nvidia": "meta/llama-3.1-405b-instruct",
+        "mistral": "mistral-large-latest",
+        "groq": "openai/gpt-oss-120b"
+      },
+      "notes": "Agent tasks need quality. NVIDIA/Mistral have the biggest models."
+    },
+    "longContext": {
+      "primary": "google",
+      "fallbackChain": ["mistral", "cohere"],
+      "preferredModel": {
+        "google": "gemini-2.5-flash",
+        "mistral": "mistral-large-latest",
+        "cohere": "command-a-03-2025"
+      },
+      "notes": "Google has 1M context. Mistral 256K. Cohere 256K."
+    }
+  }
+}

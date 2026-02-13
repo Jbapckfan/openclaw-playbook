@@ -71,8 +71,28 @@ CONFIG_DIR = SCRIPT_DIR / "voice-hub"
 CONFIG_FILE = CONFIG_DIR / "jarvis-config.json"
 SYSTEM_PROMPT_FILE = CONFIG_DIR / "jarvis-system-prompt.md"
 PIPER_CONFIG_FILE = CONFIG_DIR / "piper-config.json"
+LLM_PROVIDERS_FILE = SCRIPT_DIR.parent / "agent-configs" / "llm-providers.json"
+ENV_FILE = Path.home() / ".jarvis" / ".env"
 DATA_DIR = Path.home() / "jarvis" / "data" / "voice"
 LOG_DIR = Path.home() / "jarvis" / "logs"
+
+# --- Load .env file ---
+def load_env_file():
+    """Load environment variables from ~/.jarvis/.env if it exists."""
+    if not ENV_FILE.exists():
+        return
+    for line in ENV_FILE.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if key and value and key not in os.environ:
+                os.environ[key] = value
+
+load_env_file()
 
 # --- Load config ---
 def load_config() -> dict:
@@ -138,6 +158,43 @@ COMMAND_LOG = Path(
     CONFIG.get("logging", {}).get("commandLog", "~/jarvis/data/voice/jarvis-command-log.jsonl")
     .replace("~", str(Path.home()))
 )
+
+# --- Load LLM providers (cloud fallbacks) ---
+def load_llm_providers() -> list[dict]:
+    """Load cloud LLM providers from llm-providers.json for fallback."""
+    if not LLM_PROVIDERS_FILE.exists():
+        return []
+    try:
+        data = json.loads(LLM_PROVIDERS_FILE.read_text())
+        providers_by_id = {p["id"]: p for p in data.get("providers", [])}
+        # Build fallback chain for voice agent
+        voice_defaults = data.get("defaults", {}).get("voiceAgent", {})
+        fallback_ids = voice_defaults.get("fallbackChain", ["groq", "cerebras", "sambanova"])
+        preferred_models = voice_defaults.get("preferredModel", {})
+
+        chain = []
+        for pid in fallback_ids:
+            if pid in providers_by_id:
+                provider = providers_by_id[pid]
+                # Resolve API key from environment variable
+                api_key_env = provider.get("apiKeyEnv", "")
+                api_key = os.environ.get(api_key_env, "") if api_key_env else ""
+                if not api_key:
+                    continue  # Skip providers without a configured key
+                chain.append({
+                    "id": pid,
+                    "name": provider["name"],
+                    "endpoint": provider["endpoint"],
+                    "apiKey": api_key,
+                    "compatible": provider.get("compatible", "openai"),
+                    "model": preferred_models.get(pid, provider["models"][0] if provider.get("models") else ""),
+                })
+        return chain
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"WARNING: Failed to load LLM providers: {e}", file=sys.stderr)
+        return []
+
+CLOUD_FALLBACKS = load_llm_providers()
 
 # --- Load system prompt ---
 def load_system_prompt() -> str:
@@ -425,13 +482,40 @@ class StreamingPipeline:
         self.audio_queue.put(None)
 
     def _stream_from_ollama(self, messages: list[dict]):
-        """Thread 1: Stream tokens from Ollama, buffer into sentences."""
+        """Thread 1: Stream tokens from LLM, buffer into sentences.
+
+        Tries Ollama first. If Ollama is unreachable, falls through to cloud
+        providers (Groq → Cerebras → SambaNova) from llm-providers.json.
+        """
+        # Try Ollama first
+        success = self._try_ollama_stream(messages)
+        if success:
+            return
+
+        # Ollama failed — try cloud fallbacks
+        if CLOUD_FALLBACKS and not self.cancel.is_set():
+            log.info(f"Ollama unavailable, trying {len(CLOUD_FALLBACKS)} cloud fallbacks...")
+            for provider in CLOUD_FALLBACKS:
+                if self.cancel.is_set():
+                    break
+                success = self._try_cloud_stream(messages, provider)
+                if success:
+                    return
+
+        # All providers failed
+        if not self.cancel.is_set():
+            self.sentence_queue.put("I can't reach any of my thinking engines right now.")
+            with self._lock:
+                self.full_response = "[error: all providers unreachable]"
+            self.sentence_queue.put(None)
+
+    def _try_ollama_stream(self, messages: list[dict]) -> bool:
+        """Try streaming from local Ollama. Returns True on success."""
         token_buffer = ""
-        route_detected = False
         route_check_done = False
 
         try:
-            with httpx.Client(timeout=httpx.Timeout(LLM_STREAM_TIMEOUT, connect=10)) as client:
+            with httpx.Client(timeout=httpx.Timeout(LLM_STREAM_TIMEOUT, connect=5)) as client:
                 with client.stream(
                     "POST",
                     f"{LLM_BASE_URL}/api/chat",
@@ -449,7 +533,7 @@ class StreamingPipeline:
 
                     for line in response.iter_lines():
                         if self.cancel.is_set():
-                            return
+                            return True  # Cancelled counts as "handled"
 
                         if not line.strip():
                             continue
@@ -459,7 +543,6 @@ class StreamingPipeline:
                         except json.JSONDecodeError:
                             continue
 
-                        # Extract token
                         token = data.get("message", {}).get("content", "")
                         if not token:
                             if data.get("done"):
@@ -468,88 +551,171 @@ class StreamingPipeline:
 
                         token_buffer += token
 
-                        # --- Route detection in first N chars ---
-                        if not route_check_done and len(token_buffer) <= ROUTE_DETECTION_CHARS + 50:
-                            # Look for [ROUTE:agent-id] pattern
-                            route_match = re.match(
-                                r"\s*\[ROUTE:([\w-]+)\]\s*(.*)",
-                                token_buffer,
-                                re.DOTALL,
-                            )
-                            if route_match:
-                                agent_id = route_match.group(1)
-                                refined_query = route_match.group(2).strip()
-                                route_detected = True
-                                route_check_done = True
-                                log.info(f"Route detected: {agent_id}")
+                        # Route detection + sentence emission
+                        if self._process_token_buffer(token_buffer, route_check_done):
+                            return True  # Route detected
+                        if not route_check_done and len(token_buffer) > ROUTE_DETECTION_CHARS:
+                            route_check_done = True
 
-                                # Set full_response so caller can detect routing
-                                with self._lock:
-                                    self.full_response = f"[ROUTE:{agent_id}] {refined_query}"
-
-                                # Put routing sentinel into sentence queue
-                                self.sentence_queue.put(f"__ROUTE__:{agent_id}:{refined_query}")
-                                # Signal end of stream
-                                self.sentence_queue.put(None)
-                                return
-
-                            # If we've accumulated enough chars without a route tag, stop checking
-                            if len(token_buffer) > ROUTE_DETECTION_CHARS:
-                                route_check_done = True
-
-                        # --- Sentence splitting ---
-                        # Clean for speech as we go
-                        cleaned = format_for_speech(token_buffer)
-                        sentences = split_into_sentences(cleaned)
-
-                        # Emit all complete sentences (keep the last one as partial)
-                        if len(sentences) > 1:
-                            for sent in sentences[:-1]:
-                                if sent.strip() and not self.cancel.is_set():
-                                    self.sentence_queue.put(sent)
-                                    with self._lock:
-                                        self.full_response += sent + " "
-                            # Keep the partial last sentence in the buffer
-                            # Rebuild buffer from the last sentence
-                            token_buffer = sentences[-1]
-                            # But we need the raw buffer, not the cleaned version
-                            # So find where the last sentence starts in cleaned text
-                            # and adjust. Simpler: just keep the raw partial.
-                            last_clean = sentences[-1]
-                            # Find the approximate position in the raw buffer
-                            # This is imperfect but works for streaming
-                            token_buffer = last_clean
+                        # Sentence splitting
+                        token_buffer = self._emit_sentences(token_buffer)
 
                         if data.get("done"):
                             break
 
-            # Flush remaining buffer
-            if token_buffer.strip() and not self.cancel.is_set():
-                cleaned = format_for_speech(token_buffer)
-                if cleaned:
-                    self.sentence_queue.put(cleaned)
-                    with self._lock:
-                        self.full_response += cleaned
+            # Flush remaining
+            self._flush_buffer(token_buffer)
+            self.sentence_queue.put(None)
+            return True
 
-        except httpx.ConnectError:
-            log.error("Cannot connect to Ollama")
-            self.sentence_queue.put("I can't reach my thinking engine right now. Make sure Ollama is running.")
-            with self._lock:
-                self.full_response = "[error: ollama unreachable]"
-        except httpx.TimeoutException:
-            log.error("Ollama stream timed out")
-            self.sentence_queue.put("My thinking engine timed out. Try a simpler question.")
-            with self._lock:
-                self.full_response = "[error: ollama timeout]"
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            log.warning(f"Ollama unavailable: {e}")
+            return False
         except Exception as e:
-            log.error(f"Ollama streaming error: {e}", exc_info=True)
-            self.sentence_queue.put("Something went wrong with my thinking engine.")
+            log.error(f"Ollama error: {e}", exc_info=True)
+            return False
+
+    def _try_cloud_stream(self, messages: list[dict], provider: dict) -> bool:
+        """Try streaming from a cloud provider (OpenAI-compatible). Returns True on success."""
+        pid = provider["id"]
+        endpoint = provider["endpoint"]
+        api_key = provider["apiKey"]
+        model = provider["model"]
+        compatible = provider.get("compatible", "openai")
+
+        log.info(f"Trying cloud provider: {provider['name']} ({model})")
+
+        if compatible == "google":
+            # Google Gemini uses a different API format — skip for streaming
+            log.info(f"Skipping {pid} (Google API not OpenAI-compatible for streaming)")
+            return False
+
+        token_buffer = ""
+        route_check_done = False
+
+        try:
+            with httpx.Client(timeout=httpx.Timeout(LLM_STREAM_TIMEOUT, connect=10)) as client:
+                with client.stream(
+                    "POST",
+                    f"{endpoint}/chat/completions",
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "stream": True,
+                        "temperature": LLM_TEMPERATURE,
+                        "max_tokens": LLM_MAX_TOKENS,
+                    },
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                ) as response:
+                    response.raise_for_status()
+
+                    for line in response.iter_lines():
+                        if self.cancel.is_set():
+                            return True
+
+                        if not line.strip():
+                            continue
+
+                        # SSE format: "data: {...}" or "data: [DONE]"
+                        if line.startswith("data: "):
+                            line = line[6:]
+                        if line.strip() == "[DONE]":
+                            break
+
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+
+                        # OpenAI-compatible streaming format
+                        choices = data.get("choices", [])
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {})
+                        token = delta.get("content", "")
+                        if not token:
+                            if choices[0].get("finish_reason"):
+                                break
+                            continue
+
+                        token_buffer += token
+
+                        if self._process_token_buffer(token_buffer, route_check_done):
+                            return True
+                        if not route_check_done and len(token_buffer) > ROUTE_DETECTION_CHARS:
+                            route_check_done = True
+
+                        token_buffer = self._emit_sentences(token_buffer)
+
+            self._flush_buffer(token_buffer)
+            self.sentence_queue.put(None)
+            log.info(f"Cloud provider {pid} succeeded")
+            return True
+
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            log.warning(f"Cloud provider {pid} unavailable: {e}")
+            return False
+        except httpx.HTTPStatusError as e:
+            log.warning(f"Cloud provider {pid} HTTP error: {e.response.status_code}")
+            return False
+        except Exception as e:
+            log.error(f"Cloud provider {pid} error: {e}")
+            return False
+
+    # --- Shared helpers for streaming ---
+
+    def _process_token_buffer(self, token_buffer: str, route_check_done: bool) -> bool:
+        """Check for route detection in token buffer. Returns True if route found."""
+        if route_check_done:
+            return False
+        if len(token_buffer) > ROUTE_DETECTION_CHARS + 50:
+            return False
+
+        route_match = re.match(
+            r"\s*\[ROUTE:([\w-]+)\]\s*(.*)",
+            token_buffer,
+            re.DOTALL,
+        )
+        if route_match:
+            agent_id = route_match.group(1)
+            refined_query = route_match.group(2).strip()
+            log.info(f"Route detected: {agent_id}")
+
             with self._lock:
-                self.full_response = f"[error: {e}]"
-        finally:
-            # Signal end of sentences
-            if not self.cancel.is_set():
-                self.sentence_queue.put(None)
+                self.full_response = f"[ROUTE:{agent_id}] {refined_query}"
+
+            self.sentence_queue.put(f"__ROUTE__:{agent_id}:{refined_query}")
+            self.sentence_queue.put(None)
+            return True
+
+        return False
+
+    def _emit_sentences(self, token_buffer: str) -> str:
+        """Split buffer into sentences, emit complete ones, return remainder."""
+        cleaned = format_for_speech(token_buffer)
+        sentences = split_into_sentences(cleaned)
+
+        if len(sentences) > 1:
+            for sent in sentences[:-1]:
+                if sent.strip() and not self.cancel.is_set():
+                    self.sentence_queue.put(sent)
+                    with self._lock:
+                        self.full_response += sent + " "
+            return sentences[-1]
+
+        return token_buffer
+
+    def _flush_buffer(self, token_buffer: str):
+        """Flush any remaining text in the buffer."""
+        if token_buffer.strip() and not self.cancel.is_set():
+            cleaned = format_for_speech(token_buffer)
+            if cleaned:
+                self.sentence_queue.put(cleaned)
+                with self._lock:
+                    self.full_response += cleaned
 
     def _synthesize_sentences(self):
         """Thread 2: Take sentences from queue, synthesize via Piper TTS."""
@@ -1071,6 +1237,11 @@ class JarvisVoice:
         log.info(f"  Whisper: {'ready' if HAS_WHISPER else 'NOT AVAILABLE'}")
         log.info(f"  Piper: {'ready' if HAS_PIPER else f'fallback to {TTS_FALLBACK}'}")
         log.info(f"  Pynput: {'ready' if HAS_PYNPUT else 'NOT AVAILABLE'}")
+        if CLOUD_FALLBACKS:
+            fallback_names = [f["name"] for f in CLOUD_FALLBACKS]
+            log.info(f"  Cloud fallbacks: {' → '.join(fallback_names)}")
+        else:
+            log.info("  Cloud fallbacks: none (llm-providers.json not found)")
         log.info(f"  Conversation memory: {len(self.memory.turns)} turns loaded")
         log.info("=" * 50)
 
